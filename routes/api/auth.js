@@ -1,6 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const gravatar = require("gravatar");
 
 const { User, schemas } = require("../../models/user");
 
@@ -20,7 +21,8 @@ router.post("/register", async (req, res, next) => {
       res.status(409).json({ message: `Email in use` });
     }
     const hashPassword = await bcrypt.hash(password, 10);
-    await User.create({ email, password: hashPassword });
+    const avatarURL = gravatar.url(email);
+    await User.create({ email, avatarURL, password: hashPassword });
     res.status(201).json({
       user: {
         email,
