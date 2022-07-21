@@ -2,8 +2,10 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const gravatar = require("gravatar");
+const { v4 } = require("uuid");
 
 const { User, schemas } = require("../../models/user");
+const { sendMail } = require("../../helpers");
 
 const router = express.Router();
 
@@ -22,7 +24,19 @@ router.post("/register", async (req, res, next) => {
     }
     const hashPassword = await bcrypt.hash(password, 10);
     const avatarURL = gravatar.url(email);
-    await User.create({ email, avatarURL, password: hashPassword });
+    const verificationToken = v4();
+    await User.create({
+      email,
+      avatarURL,
+      password: hashPassword,
+      verificationToken,
+    });
+    const mail = {
+      to: email,
+      subject: "Подтверждение email",
+      html: `<a target="_blank" href='localhost:3000/api/users/${verificationToken}'>Нажмите чтобы подтвердить свой email </a>`,
+    };
+    await sendMail(mail);
     res.status(201).json({
       user: {
         email,
@@ -43,6 +57,9 @@ router.post("/login", async (req, res, next) => {
     const user = await User.findOne({ email });
     if (!user) {
       res.status(401).json({ message: `Email or password is wrong` });
+    }
+    if (!user.verify) {
+      res.status(401).json({ message: `Email is not verified` });
     }
     const compareResult = await bcrypt.compare(password, user.password);
     if (!compareResult) {
